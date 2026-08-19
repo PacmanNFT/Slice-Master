@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slice Alignment Game</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: #121214;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+            font-size: 24px;
+            text-align: center;
+        }
+
+        p.subtitle {
+            margin-bottom: 20px;
+            color: #a0a0a0;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #2563eb;
+        }
+
+        .btn-secondary {
+            background-color: #27272a;
+            color: #e4e4e7;
+        }
+
+        .btn-secondary:hover {
+            background-color: #3f3f46;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .game-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        #game-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .info-panel {
+            margin-top: 16px;
+            display: flex;
+            justify-content: space-between;
+            width: 400px;
+            font-size: 14px;
+            color: #a0a0a0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: #18181b;
+            padding: 24px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 90%;
+            width: 320px;
+        }
+
+        .modal h2 {
+            margin-bottom: 12px;
+        }
+
+        .modal p {
+            color: #a0a0a0;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Slice Alignment</h1>
+    <p class="subtitle">Tap anywhere on the game area to lock each slice in place!</p>
+
+    <div class="controls">
+        <label for="file-input" class="btn btn-secondary">Upload Custom Image</label>
+        <input type="file" id="file-input" accept="image/*">
+        <button id="restart-btn" class="btn btn-secondary">Restart Game</button>
+    </div>
+
+    <div class="game-container" id="game-container">
+        <canvas id="game-canvas" width="400" height="400"></canvas>
+    </div>
+
+    <div class="info-panel">
+        <span id="slice-counter">Slice: 0 / 24</span>
+        <span id="status-text">Click screen to stop slice</span>
+    </div>
+
+    <!-- Completion Modal -->
+    <div class="modal" id="completion-modal">
+        <div class="modal-content">
+            <h2>Game Complete!</h2>
+            <p>Nice work! You aligned all 24 slices.</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button id="save-btn" class="btn">Save Finished Image</button>
+                <button id="play-again-btn" class="btn btn-secondary">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const NUM_SLICES = 24;
+        const CANVAS_SIZE = 400;
+        const SLICE_HEIGHT = CANVAS_SIZE / NUM_SLICES;
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const gameContainer = document.getElementById('game-container');
+        const sliceCounter = document.getElementById('slice-counter');
+        const statusText = document.getElementById('status-text');
+        const fileInput = document.getElementById('file-input');
+        const restartBtn = document.getElementById('restart-btn');
+        const completionModal = document.getElementById('completion-modal');
+        const saveBtn = document.getElementById('save-btn');
+        const playAgainBtn = document.getElementById('play-again-btn');
+
+        let img = new Image();
+        let currentSlice = 0;
+        let slices = [];
+        let activeSliceX = 0;
+        let activeSliceDirection = 1;
+        let activeSliceSpeed = 5.2; // Increased base speed
+        let animationFrameId = null;
+        let isGameOver = false;
+
+        const defaultImageSrc = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAACXBIWXMAAAsTAAALEwEAmpwYAAAF10lEQVR4nO2dW2xURRyAv562vRRFUIi3GBMTL1ETo1ET45NvfPDB+OAL4oMvPvisidH44I3f1AcTE403jTEmGk2MxgfRGGOMN14iRoxI0IqA2Cst3e329P1wltm22+22O3umO/v/k3yQmd2Z+e3O+WfOf86Z2TUaDRUvYjSoN+A3qA/A36A+AH+D+gD8DeoD8DeoD8Df4DsAvp0v43G4yV0FwA4C1S41U6m2/5S1/a13L4D3R5IeD/A+0I/A24B/u1L8a/4J4BbwC3A9sP2vAnAT8Brwl1Kqc+/zE/B1i/pP4HrgpAnY325143093S5+B94G/E3Xf/xM/AncAZw4A3fbgN1m/N/j/Tpwf31zL7p7y+9/4G3AJ/T0+xW3L/m/A9eN0/1qG7+v3+vG83e/q5t3L9610f4y/y/A5fT6d+4/f1/zI3Atvf6d25/X3O93aO/1Ld25/3i5f+/n9vS++X0A/i3v6wE+a8Xz3gUu7fE9397r1x3y+633G3L3/9f8DnxD64F37p99+pL3AX94X9vS+zrg2+i5f04v83vveV9b/pGf3v89fA/A2wN83s4A9Nrv/p6+H4A9tAtwDfgQGABm2vD3S2A8/s7z+9i1/3f9/1I/APt3D8DbgE/S+zL7P34I4I3A3fT8s/e/2/G+H/A28GZ6X25v70P39e++9f60u9/H8992p36H3m++0I/At3T+e/69sRfgfeB/pP+d1fUe7+f93+D9a+87f3+/m3e/8/uE9r8P3DvwX3xT/z8O1Afg/6U+A/4G9QH4G9QH4G9QH4C/QX0A/gb1Afgb1Afg/6X/AS+pLpU/kErmAAAAAElFTkSuQmCC";
+
+        function initGame() {
+            currentSlice = 0;
+            isGameOver = false;
+            slices = [];
+            completionModal.style.display = 'none';
+
+            for (let i = 0; i < NUM_SLICES; i++) {
+                slices.push({
+                    y: i * SLICE_HEIGHT,
+                    x: 0,
+                    locked: false
+                });
+            }
+
+            activeSliceX = 0;
+            activeSliceDirection = 1;
+            updateActiveSliceSpeed();
+            updateUI();
+
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            gameLoop();
+        }
+
+        function updateActiveSliceSpeed() {
+            // Updated to be slightly faster base speed (4.0) + slice progress
+            activeSliceSpeed = 4.0 + (currentSlice * 0.3);
+        }
+
+        function updateUI() {
+            sliceCounter.textContent = `Slice: ${Math.min(currentSlice + 1, NUM_SLICES)} / ${NUM_SLICES}`;
+            if (isGameOver) {
+                statusText.textContent = "Finished!";
+            } else {
+                statusText.textContent = "Click to stop slice";
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            ctx.globalAlpha = 0.15;
+            ctx.drawImage(img, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctx.globalAlpha = 1.0;
+
+            if (!isGameOver) {
+                activeSliceX += activeSliceSpeed * activeSliceDirection;
+                const maxOffset = 180; 
+                if (activeSliceX > maxOffset) {
+                    activeSliceX = maxOffset;
+                    activeSliceDirection = -1;
+                } else if (activeSliceX < -maxOffset) {
+                    activeSliceX = -maxOffset;
+                    activeSliceDirection = 1;
+                }
+            }
+
+            const srcSliceHeight = img.naturalHeight / NUM_SLICES;
+
+            for (let i = 0; i < NUM_SLICES; i++) {
+                let posX = 0;
+
+                if (slices[i].locked) {
+                    posX = slices[i].x;
+                } else if (i === currentSlice && !isGameOver) {
+                    posX = activeSliceX;
+                } else {
+                    continue;
+                }
+
+                ctx.drawImage(
+                    img,
+                    0, i * srcSliceHeight, img.naturalWidth, srcSliceHeight,
+                    posX, slices[i].y, CANVAS_SIZE, SLICE_HEIGHT
+                );
+            }
+
+            if (!isGameOver) {
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function lockCurrentSlice() {
+            if (isGameOver || currentSlice >= NUM_SLICES) return;
+
+            slices[currentSlice].x = activeSliceX;
+            slices[currentSlice].locked = true;
+
+            currentSlice++;
+
+            if (currentSlice >= NUM_SLICES) {
+                isGameOver = true;
+                updateUI();
+                setTimeout(() => {
+                    completionModal.style.display = 'flex';
+                }, 400);
+            } else {
+                activeSliceDirection = Math.random() > 0.5 ? 1 : -1;
+                activeSliceX = (Math.random() * 200 - 100);
+                updateActiveSliceSpeed();
+                updateUI();
+            }
+        }
+
+        function saveFinalImage() {
+            const saveCanvas = document.createElement('canvas');
+            saveCanvas.width = CANVAS_SIZE;
+            saveCanvas.height = CANVAS_SIZE;
+            const saveCtx = saveCanvas.getContext('2d');
+
+            const srcSliceHeight = img.naturalHeight / NUM_SLICES;
+
+            for (let i = 0; i < NUM_SLICES; i++) {
+                saveCtx.drawImage(
+                    img,
+                    0, i * srcSliceHeight, img.naturalWidth, srcSliceHeight,
+                    slices[i].x, slices[i].y, CANVAS_SIZE, SLICE_HEIGHT
+                );
+            }
+
+            const link = document.createElement('a');
+            link.download = 'sliced-character.png';
+            link.href = saveCanvas.toDataURL('image/png');
+            link.click();
+        }
+
+        gameContainer.addEventListener('click', lockCurrentSlice);
+        restartBtn.addEventListener('click', initGame);
+        playAgainBtn.addEventListener('click', initGame);
+        saveBtn.addEventListener('click', saveFinalImage);
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        img.onload = () => {
+            initGame();
+        };
+
+        img.src = defaultImageSrc;
+    </script>
+</body>
+</html>
