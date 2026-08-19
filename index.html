@@ -13,7 +13,7 @@
         }
 
         body {
-            background-color: #121214;
+            background-color: #0f172a;
             color: #ffffff;
             display: flex;
             flex-direction: column;
@@ -24,14 +24,19 @@
         }
 
         h1 {
-            margin-bottom: 8px;
-            font-size: 24px;
+            margin-bottom: 6px;
+            font-size: 32px;
+            font-weight: 800;
             text-align: center;
+            background: linear-gradient(135deg, #a855f7, #ec4899, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(168, 85, 247, 0.3);
         }
 
         p.subtitle {
             margin-bottom: 20px;
-            color: #a0a0a0;
+            color: #94a3b8;
             font-size: 14px;
             text-align: center;
         }
@@ -45,28 +50,33 @@
         }
 
         .btn {
-            background-color: #3b82f6;
+            background: linear-gradient(135deg, #a855f7, #6366f1);
             color: white;
             border: none;
-            padding: 10px 18px;
-            border-radius: 8px;
+            padding: 10px 20px;
+            border-radius: 10px;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 14px;
-            transition: background-color 0.2s;
+            box-shadow: 0 4px 14px rgba(168, 85, 247, 0.3);
+            transition: all 0.2s ease;
         }
 
         .btn:hover {
-            background-color: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(168, 85, 247, 0.5);
         }
 
         .btn-secondary {
-            background-color: #27272a;
-            color: #e4e4e7;
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            box-shadow: none;
         }
 
         .btn-secondary:hover {
-            background-color: #3f3f46;
+            background: #334155;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         #file-input {
@@ -77,12 +87,14 @@
             position: relative;
             width: 400px;
             height: 400px;
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.35), 0 0 50px rgba(168, 85, 247, 0.2);
+            border: 3px solid #ec4899;
             cursor: pointer;
             user-select: none;
             touch-action: manipulation;
+            transition: border-color 0.3s ease;
         }
 
         #game-canvas {
@@ -92,39 +104,61 @@
         }
 
         .info-panel {
-            margin-top: 16px;
+            margin-top: 18px;
             display: flex;
             justify-content: space-between;
             width: 400px;
-            font-size: 14px;
-            color: #a0a0a0;
+            font-size: 15px;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+
+        .info-panel span {
+            background: #1e293b;
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid #334155;
         }
 
         .modal {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
             align-items: center;
             justify-content: center;
             z-index: 100;
         }
 
         .modal-content {
-            background: #18181b;
-            padding: 24px;
-            border-radius: 12px;
+            background: #1e293b;
+            border: 2px solid #a855f7;
+            padding: 28px;
+            border-radius: 18px;
             text-align: center;
             max-width: 90%;
-            width: 320px;
+            width: 340px;
+            box-shadow: 0 10px 30px rgba(168, 85, 247, 0.4);
         }
 
         .modal h2 {
-            margin-bottom: 12px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .score-display {
+            font-size: 36px;
+            font-weight: 800;
+            color: #38bdf8;
+            margin: 12px 0 16px 0;
+            text-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
         }
 
         .modal p {
-            color: #a0a0a0;
+            color: #94a3b8;
             margin-bottom: 20px;
             font-size: 14px;
         }
@@ -133,7 +167,7 @@
 <body>
 
     <h1>Slice Master</h1>
-    <p class="subtitle">Tap anywhere on the game area to lock each slice in place!</p>
+    <p class="subtitle">Click screen or press SPACEBAR to lock each slice!</p>
 
     <div class="controls">
         <label for="file-input" class="btn btn-secondary">Upload Custom Image</label>
@@ -147,14 +181,15 @@
 
     <div class="info-panel">
         <span id="slice-counter">Slice: 0 / 24</span>
-        <span id="status-text">Click screen to stop slice</span>
+        <span id="status-text">Click or Press Space</span>
     </div>
 
     <!-- Completion Modal -->
     <div class="modal" id="completion-modal">
         <div class="modal-content">
             <h2>Game Complete!</h2>
-            <p>Nice work! You aligned all 24 slices.</p>
+            <div class="score-display" id="final-score">100%</div>
+            <p>Alignment Accuracy Score</p>
             <div style="display: flex; flex-direction: column; gap: 10px;">
                 <button id="save-btn" class="btn">Save Finished Image</button>
                 <button id="play-again-btn" class="btn btn-secondary">Play Again</button>
@@ -175,6 +210,7 @@
         const fileInput = document.getElementById('file-input');
         const restartBtn = document.getElementById('restart-btn');
         const completionModal = document.getElementById('completion-modal');
+        const finalScoreDisplay = document.getElementById('final-score');
         const saveBtn = document.getElementById('save-btn');
         const playAgainBtn = document.getElementById('play-again-btn');
 
@@ -183,7 +219,7 @@
         let slices = [];
         let activeSliceX = 0;
         let activeSliceDirection = 1;
-        let activeSliceSpeed = 5.2; // Increased base speed
+        let activeSliceSpeed = 4.0;
         let animationFrameId = null;
         let isGameOver = false;
 
@@ -213,7 +249,6 @@
         }
 
         function updateActiveSliceSpeed() {
-            // Updated to be slightly faster base speed (4.0) + slice progress
             activeSliceSpeed = 4.0 + (currentSlice * 0.3);
         }
 
@@ -222,8 +257,21 @@
             if (isGameOver) {
                 statusText.textContent = "Finished!";
             } else {
-                statusText.textContent = "Click to stop slice";
+                statusText.textContent = "Click or Press Space";
             }
+        }
+
+        function calculateAccuracy() {
+            let totalError = 0;
+            const maxOffset = 180; // Maximum possible error offset
+
+            slices.forEach(slice => {
+                totalError += Math.abs(slice.x);
+            });
+
+            const maxTotalError = maxOffset * NUM_SLICES;
+            const accuracy = Math.max(0, 100 - (totalError / maxTotalError) * 100);
+            return accuracy.toFixed(1);
         }
 
         function gameLoop() {
@@ -281,6 +329,8 @@
             if (currentSlice >= NUM_SLICES) {
                 isGameOver = true;
                 updateUI();
+                const score = calculateAccuracy();
+                finalScoreDisplay.textContent = `${score}%`;
                 setTimeout(() => {
                     completionModal.style.display = 'flex';
                 }, 400);
@@ -309,12 +359,22 @@
             }
 
             const link = document.createElement('a');
-            link.download = 'sliced-character.png';
+            link.download = 'slice-master-artwork.png';
             link.href = saveCanvas.toDataURL('image/png');
             link.click();
         }
 
+        // Mouse/Touch click event
         gameContainer.addEventListener('click', lockCurrentSlice);
+
+        // Keyboard Spacebar event
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault(); // Prevents page scrolling on spacebar press
+                lockCurrentSlice();
+            }
+        });
+
         restartBtn.addEventListener('click', initGame);
         playAgainBtn.addEventListener('click', initGame);
         saveBtn.addEventListener('click', saveFinalImage);
